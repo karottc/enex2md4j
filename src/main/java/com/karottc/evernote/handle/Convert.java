@@ -8,6 +8,10 @@ import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +28,11 @@ public class Convert {
     private static MimeTypes MIME_TYPES = MimeTypes.getDefaultMimeTypes();
     private static XmlMapper xmlMapper = new XmlMapper();
     private static FlexmarkHtmlConverter HTML_TO_MD_CONVERT;
+
+    private static final Map<String, String> EN_MEDIA_MAP = new HashMap<>(){{
+        put("image", "<img src=\"zimgs/%s\" alt=\"%s\" />");
+        put("file", "<a href=\"./zimgs/%s\">%s</a>");
+    }};
 
     public Convert() {
         MutableDataSet options = new MutableDataSet();
@@ -61,7 +70,7 @@ public class Convert {
     public MdNote.Note convert(EnexExport.Note enexNote) {
         MdNote.Note ret = new MdNote.Note();
         ret.media = mapResources(enexNote);
-//        normalizeHTML()
+        normalizeHTML(enexNote, ret);
         toMarkdown(enexNote, ret);
 
         return ret;
@@ -86,6 +95,32 @@ public class Convert {
 
         return media;
     }
+
+    private void normalizeHTML(EnexExport.Note enexNote, MdNote.Note mdNote) {
+        // 使用 Jsoup 解析 HTML
+        Document doc = Jsoup.parse(enexNote.content);
+        handleEnMedia(doc, mdNote);
+
+        enexNote.content = doc.html();
+    }
+
+    private void handleEnMedia(Document doc, MdNote.Note mdNode) {
+        Elements medias = doc.select("en-media");
+        for (Element node : medias) {
+            if (!node.hasAttr("hash")) {
+                continue;
+            }
+            String[] types = node.attr("type").split("/");
+            String type = types[0];
+            String hash = node.attr("hash");
+
+            String fileName = mdNode.media.get(hash).name;
+            String e = EN_MEDIA_MAP.get(type).formatted(fileName, fileName);
+            node.after(e);
+        }
+        doc.select("en-media").remove();
+    }
+
 
     private void toMarkdown(EnexExport.Note enexNote, MdNote.Note mdNote) {
         mdNote.content = HTML_TO_MD_CONVERT.convert(enexNote.content);
