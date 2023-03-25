@@ -4,6 +4,8 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.common.hash.Hashing;
 import com.karottc.evernote.note.EnexExport;
 import com.karottc.evernote.note.MdNote;
+import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
+import com.vladsch.flexmark.util.data.MutableDataSet;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
 
@@ -21,7 +23,17 @@ public class Convert {
 
     private static MimeTypes MIME_TYPES = MimeTypes.getDefaultMimeTypes();
     private static XmlMapper xmlMapper = new XmlMapper();
+    private static FlexmarkHtmlConverter HTML_TO_MD_CONVERT;
 
+    public Convert() {
+        MutableDataSet options = new MutableDataSet();
+        // 不使用 <br /> 来换行
+        options.set(FlexmarkHtmlConverter.BR_AS_EXTRA_BLANK_LINES, false);
+        // 标题使用 # 符号，不使用 --- 来做标题
+        options.set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false);
+
+        HTML_TO_MD_CONVERT = FlexmarkHtmlConverter.builder(options).build();
+    }
 
     public EnexExport parseEnexFile(String fileName) {
         try {
@@ -50,7 +62,7 @@ public class Convert {
         MdNote.Note ret = new MdNote.Note();
         ret.media = mapResources(enexNote);
 //        normalizeHTML()
-//        toMarkdown();
+        toMarkdown(enexNote, ret);
 
         return ret;
     }
@@ -58,7 +70,6 @@ public class Convert {
     private Map<String, MdNote.Resource> mapResources(EnexExport.Note enexNote) {
         Map<String, MdNote.Resource> media = new HashMap<>();
 
-        int index = 0;
         for (EnexExport.Resource resource : enexNote.resources) {
             MdNote.Resource r = new MdNote.Resource();
             r.content = decoder(resource.data);
@@ -66,14 +77,18 @@ public class Convert {
             MimeBo bo = parseMime(resource.mime);
             r.name = resource.filename + bo.extension;
             r.type = bo.type;
-            media.put(String.valueOf(index++), r);
+
+            EnexExport.Recognition recognition = parseRecognition(resource.recognition);
+            r.id = recognition.objID;
+
+            media.put(r.id, r);
         }
 
         return media;
     }
 
     private void toMarkdown(EnexExport.Note enexNote, MdNote.Note mdNote) {
-
+        mdNote.content = HTML_TO_MD_CONVERT.convert(enexNote.content);
     }
 
     private byte[] decoder(EnexExport.Data data) {
@@ -93,6 +108,14 @@ public class Convert {
             e.printStackTrace();
         }
         return ret;
+    }
+
+    private EnexExport.Recognition parseRecognition(String xml) {
+        try {
+            return xmlMapper.readValue(xml, EnexExport.Recognition.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
     }
 
     private static class MimeBo {

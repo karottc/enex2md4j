@@ -41,6 +41,7 @@ public class EnexExport {
         public String mime; // e.g: image/jpeg
         public int width;
         public int height;
+        public String recognition; // 也是xml内容，对应下面 Recognition 结构
 
         // 非xml字段
         public String filename;
@@ -53,5 +54,11 @@ public class EnexExport {
 
         @JacksonXmlText
         public String value;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Recognition {
+        public String objType;
+        public String objID;
     }
 }

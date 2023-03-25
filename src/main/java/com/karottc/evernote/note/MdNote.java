@@ -19,5 +19,6 @@ public class MdNote {
         public String name;
         public String type;
         public byte[] content;
+        public String id;
     }
 }
