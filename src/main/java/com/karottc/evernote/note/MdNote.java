@@ -9,6 +9,7 @@ import java.util.Map;
 public class MdNote {
 
     public static class Note {
+        public String fileName;
         public String content;
         public Map<String, Resource> media;
         public long ctime;

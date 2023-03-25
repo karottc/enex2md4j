@@ -69,6 +69,7 @@ public class Convert {
 
     public MdNote.Note convert(EnexExport.Note enexNote) {
         MdNote.Note ret = new MdNote.Note();
+        ret.fileName = enexNote.title;
         ret.media = mapResources(enexNote);
         normalizeHTML(enexNote, ret);
         toMarkdown(enexNote, ret);
